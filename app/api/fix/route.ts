@@ -3,34 +3,24 @@ import { NextRequest, NextResponse } from "next/server";
 export async function POST(req: NextRequest) {
   try {
     const { prompt } = await req.json();
-
     const key = process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY;
-
     if (!key) {
-      return NextResponse.json({ result: "ما كاينش GEMINI_API_KEY فـ Vercel" });
+      return NextResponse.json({ result: "ما كاينش API KEY" });
     }
-
     const r = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${key}`,
+      `https://generativelanguage.googleapis.com/v1/models/gemini-3.6-flash:generateContent?key=${key}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }]
-        })
+        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
       }
     );
-
     const d = await r.json();
-
     if (d.error) {
-      return NextResponse.json({ result: "Error من Google: " + d.error.message });
+      return NextResponse.json({ result: "Error: " + d.error.message });
     }
-
-    const answer = d.candidates?.[0]?.content?.parts?.[0]?.text || "ما لقيت حتى جواب";
-
+    const answer = d.candidates?.[0]?.content?.parts?.[0]?.text || "ما كاين جواب";
     return NextResponse.json({ result: answer });
-
   } catch (e: any) {
     return NextResponse.json({ result: "Error: " + e.message });
   }
