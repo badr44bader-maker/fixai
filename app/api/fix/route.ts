@@ -1,30 +1,40 @@
 import { NextRequest, NextResponse } from "next/server";
-
 export async function POST(req: NextRequest) {
   try {
     const { prompt } = await req.json();
-    const key = process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY;
-    if (!key) return NextResponse.json({ result: "ما كاينش KEY" });
+    const groqKey = process.env.GROQ_API_KEY;
+    const geminiKey = process.env.GEMINI_API_KEY;
+    let text = "";
 
-    const models = ["gemini-1.5-flash-8b","gemini-2.0-flash-lite","gemini-flash-latest"];
-
-    for (const model of models) {
-      for (let i=0; i<2; i++) {
-        try {
-          const r = await fetch(`https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${key}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-          });
-          const d = await r.json();
-          const text = d.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (text) return NextResponse.json({ result: text });
-          await new Promise(res => setTimeout(res, 2000));
-        } catch {}
-      }
+    // جرب Groq الأول حيث خفيف
+    if (groqKey) {
+      try {
+        const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${groqKey}` },
+          body: JSON.stringify({
+            model: "llama-3.3-70b-versatile",
+            messages: [{ role: "system", content: "انت خبير إصلاح بالدارجة المغربية" }, { role: "user", content: prompt }],
+          })
+        });
+        const d = await r.json();
+        text = d.choices?.[0]?.message?.content;
+        if (text) return NextResponse.json({ result: text });
+      } catch {}
     }
-    return NextResponse.json({ result: "السيرفر عامر، تسنى 1 دقيقة و عاود جرب، راه غادي يخدم" });
-  } catch (e:any) {
-    return NextResponse.json({ result: "Error: "+e.message });
+    // إلا ما خدمش جرب Gemini
+    if (geminiKey) {
+      const r = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${geminiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+      });
+      const d = await r.json();
+      text = d.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (text) return NextResponse.json({ result: text });
+    }
+    return NextResponse.json({ result: "عاود جرب دابا" });
+  } catch (e: any) {
+    return NextResponse.json({ result: "Error: " + e.message });
   }
 }
