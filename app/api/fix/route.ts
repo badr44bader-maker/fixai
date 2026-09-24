@@ -2,39 +2,30 @@ import { NextRequest, NextResponse } from "next/server";
 export async function POST(req: NextRequest) {
   try {
     const { prompt } = await req.json();
-    const groqKey = process.env.GROQ_API_KEY;
-    const geminiKey = process.env.GEMINI_API_KEY;
-    let text = "";
+    const groqKey = process.env.GROQ_API_KEY?.trim();
+    
+    if (!groqKey) {
+      return NextResponse.json({ result: `Vercel ما لقاش GROQ_API_KEY - خاصك تدير Redeploy` });
+    }
 
-    // جرب Groq الأول حيث خفيف
-    if (groqKey) {
-      try {
-        const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${groqKey}` },
-          body: JSON.stringify({
-            model: "llama-3.3-70b-versatile",
-            messages: [{ role: "system", content: "انت خبير إصلاح بالدارجة المغربية" }, { role: "user", content: prompt }],
-          })
-        });
-        const d = await r.json();
-        text = d.choices?.[0]?.message?.content;
-        if (text) return NextResponse.json({ result: text });
-      } catch {}
+    const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${groqKey}` },
+      body: JSON.stringify({ model: "llama-3.3-70b-versatile", messages: [{ role: "user", content: prompt }] })
+    });
+    
+    const d = await r.json();
+    
+    if (d.error) {
+      return NextResponse.json({ result: `Groq Error: ${d.error.message} - المفتاح: ${groqKey.slice(0,10)}...` });
     }
-    // إلا ما خدمش جرب Gemini
-    if (geminiKey) {
-      const r = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${geminiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-      });
-      const d = await r.json();
-      text = d.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (text) return NextResponse.json({ result: text });
+    
+    if (d.choices?.[0]?.message?.content) {
+      return NextResponse.json({ result: d.choices[0].message.content });
     }
-    return NextResponse.json({ result: "عاود جرب دابا" });
-  } catch (e: any) {
-    return NextResponse.json({ result: "Error: " + e.message });
+
+    return NextResponse.json({ result: `Groq ما جاوبش: ${JSON.stringify(d).slice(0,200)}` });
+  } catch (e:any) { 
+    return NextResponse.json({ result: "Error: "+e.message }); 
   }
-}
+                              }
