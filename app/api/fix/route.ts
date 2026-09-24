@@ -7,10 +7,10 @@ export async function POST(req: NextRequest) {
     if (!key) return NextResponse.json({ result: "ما كاينش API KEY" });
 
     const models = [
-      "gemini-2.0-flash",
+      "gemini-1.5-flash-8b",
       "gemini-2.0-flash-lite",
-      "gemini-flash-latest",
-      "gemini-3.6-flash"
+      "gemini-2.0-flash",
+      "gemini-flash-latest"
     ];
 
     for (const model of models) {
@@ -24,13 +24,18 @@ export async function POST(req: NextRequest) {
           }
         );
         const d = await r.json();
-        if (d.candidates?.[0]?.content?.parts?.[0]?.text) {
-          return NextResponse.json({ result: d.candidates[0].content.parts[0].text });
+        const text = d.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (text) {
+          return NextResponse.json({ result: text });
+        }
+        // الى كان Error ديال الضغط، جرب الموديل اللي موراه نيشان
+        if (d.error?.message?.includes("high demand") || d.error?.message?.includes("quota")) {
+          continue;
         }
       } catch {}
     }
 
-    return NextResponse.json({ result: "جرب تاني دابا، السيرفر عامر شوية" });
+    return NextResponse.json({ result: "السيرفر عامر دابا، عاود جرب من هنا 10 ثواني، راه خدام غير خاصك تعاود" });
 
   } catch (e: any) {
     return NextResponse.json({ result: "Error: " + e.message });
