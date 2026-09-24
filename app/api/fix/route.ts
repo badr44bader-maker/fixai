@@ -1,28 +1,58 @@
 import { NextResponse } from "next/server"
 
 export async function POST(req: Request) {
-  const { prompt } = await req.json()
   try {
-    const key = process.env.GEMINI_API_KEY || process.env.GEMINI || (process.env as any)["مفتاح واجهة برمجة تطبيقات GEMINI"]
-
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: `أنت خبير إصلاح مغربي. جاوب بالدارجة المغربية فقط، بلا ** و بلا ###، جواب قصير ومفيد. السؤال: ${prompt}` }] }]
-      })
-    })
-
-    const data = await res.json()
-    const result = data.candidates?.[0]?.content?.parts?.[0]?.text
-
-    if (!result) {
-      return NextResponse.json({ result: `باقي مشكل: ${JSON.stringify(data).slice(0,200)}` })
+    const { prompt } = await req.json()
+    
+    if (!prompt) {
+      return NextResponse.json({ result: "كتب السؤال عافاك" })
     }
 
-    return NextResponse.json({ result })
+    // كيقرا المفتاح سواء كان بالعربية ولا بالإنجليزية
+    const apiKey = 
+      process.env.GEMINI_API_KEY || 
+      process.env.GEMINI ||
+      (process.env as any)["مفتاح واجهة برمجة تطبيقات GEMINI"] ||
+      (process.env as any)["GEMINI_API_KEY"]
 
-  } catch (e:any) {
-    return NextResponse.json({ result: "خطأ: " + e.message })
+    if (!apiKey) {
+      return NextResponse.json({ result: "مكاينش المفتاح ف Vercel" })
+    }
+
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                {
+                  text: `أنت معلم إصلاح مغربي محترف. جاوب بالدارجة المغربية فقط. جواب قصير، مفيد، بلا نجوم ** و بلا ###. السؤال هو: ${prompt}`
+                }
+              ]
+            }
+          ]
+        })
+      }
+    )
+
+    const data = await response.json()
+
+    if (data.error) {
+      return NextResponse.json({ result: `خطأ من Google: ${data.error.message}` })
+    }
+
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text
+
+    if (!text) {
+      return NextResponse.json({ result: "ماجاش الجواب، عاود جرب" })
+    }
+
+    return NextResponse.json({ result: text })
+
+  } catch (error: any) {
+    return NextResponse.json({ result: `مشكل تقني: ${error.message}` })
   }
 }
